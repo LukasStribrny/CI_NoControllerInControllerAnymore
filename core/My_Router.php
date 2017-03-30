@@ -63,14 +63,19 @@ class My_Router {
 	}
 	
 	protected function createParams(){
-	if (file_exists(APPPATH.'config/routes.php')){
+		if(file_exists(APPPATH.'config/routes.php')){
 			include(APPPATH.'config/routes.php');
 		}
+		if (file_exists(APPPATH.'config/config.php')){
+			include(APPPATH.'config/config.php');
+		}
+		
 		if(empty($this->segments)){
-			header('Location: ./'.$route['default_controller'].'/'.$this->method.$this->config->item('url_suffix'));
+			header('Location: '.$config['base_url'].$route['default_controller'].'/'.$this->method.$this->config->item('url_suffix'));
 			exit();
 		}
 		$CF = APPPATH . 'controllers/' .$this->segments[1];
+                $this->Params['Data'] = [];
 		if(is_file($CF.'.php')){
 			$this->set_directory('');
 			if(count($this->segments)==1){
@@ -81,7 +86,6 @@ class My_Router {
 				$this->Params['method'] = $this->segments[2];
 			}
 		}elseif(is_dir($CF)){
-			$this->Params['Data'] = [];
 			$Reg_Key = [];
 		foreach($this->segments AS $Seg_Key=>$Seg_Val){
 			//Check to see if any value in url is numeric
