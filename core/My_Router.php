@@ -6,14 +6,65 @@ This class is about to parse path to requested Controllers class and the method 
 instead of trying to call controller in controller
 which makes troubles to codeginiter that is not designed for this purpose.
 */
+
+/*
+				Get the first registered numeric key
+				Separate it to segments -> path to class folder,file class,class method,method numeric data,other data
+				
+				http://your-cool-server.com/path/to/folder-class/YourClass/YourMethod/MethodNumericData
+				
+				//Simple Examples :
+							
+							http://your-cool-server.com/FrontEnd/YourClass/YourMethod/MethodNumericData
+							http://your-cool-server.com/BackEnd/YourClass/YourMethod/MethodNumericData
+							
+							http://your-cool-server.com/FrontEnd/User/Register
+							http://your-cool-server.com/BackEnd/User/ShowProfile/365
+							
+							http://your-cool-server.com/Web/User/Login
+							http://your-cool-server.com/Web/User/ShowProfile/365
+							http://your-cool-server.com/Web/Content/Page/657
+				
+				//More complicated Examples : 
+							http://your-cool-server.com/FrontEnd/Web/User/Login
+							http://your-cool-server.com/BackEnd/User/ShowProfile/365
+							
+				//Note : ShowProfile is the class method and 365 is the Profile_ID
+							http://your-cool-server.com/Public/Web/User/ShowProfile/365/OtherData/ID/248
+							http://your-cool-server.com/Public/Web/User/ShowProfile/365/Content/Page/1
+							http://your-cool-server.com/Public/Web/User/ShowProfile/365/Content/Page/657
+							
+							
+				//If you try to have url like this : 
+							http://your-cool-server.com/BackEnd/User/ShowProfile/UserName
+							http://your-cool-server.com/BackEnd/User/ShowProfile/MichaelJakson
+					this is not working because it is based on ID
+							
+*/
 class My_Router extends CI_Router {
 
 	/**
-	 * Default method name
+	 * Current class name
 	 *
 	 * @var	string
 	 */
-	public $Method =	'Index';
+	public $class =		'';
+
+	/**
+	 * Current method name
+	 *
+	 * @var	string
+	 */
+	public $method =	'Index';
+
+	/**
+	 * Sub-directory that contains the requested controller class
+	 *
+	 * @var	string
+	 */
+	public $directory;
+
+	// --------------------------------------------------------------------
 
 	/**
 	 * Class constructor
@@ -25,112 +76,151 @@ class My_Router extends CI_Router {
 	 */
 	public function __construct($routing = NULL){
 		parent::__construct($routing);
-		$this->HeaderDefaultLocation();
+		$this->_set_default_controller();
 		log_message('info', 'My_Router Class Initialized');
 	}
 	
-	protected function HeaderDefaultLocation(){
-		if(empty($this->uri->segments) OR count($this->uri->segments)==1){
-			header('Location: '.$this->config->item('base_url').$this->default_controller.'/'.$this->Method.$this->config->item('url_suffix'));
+	protected function HeaderDirectToBaseController(){
+		if(empty($this->uri->segment_array())){
+			header('Location: '.$this->config->item('base_url').$this->default_controller.'/'.$this->method.$this->config->item('url_suffix'));
 			exit();
 		}
 	}
 	
-	 /**
-     * OVERRIDE
-     *
-     * Validates the supplied segments.  Attempts to determine the path to
-     * the controller.
-     *
-     * @access    private
-     * @param    array
-     * @return    array
-     */
-	protected function _validate_request($segments){
-        if (count($segments) == 0){
-            return $segments;
-        }
-        // Does the requested controller exist in the root folder?
-        if (file_exists(APPPATH.'controllers/'.$segments[0].'.php')){
-            return $segments;
-        }
-        // Is the controller in a sub-folder?
-        if (is_dir(APPPATH.'controllers/'.$segments[0])){
-            // @edit: Support multi-level sub-folders
-            $dir = '';
-			do{
-                if (strlen($dir) > 0){
-                    $dir .= '/';
-                }
-				$dir .= $segments[0];
-                $segments = array_slice($segments, 1);
-            } while (count($segments) > 0 && is_dir(APPPATH.'controllers/'.$dir.'/'.$segments[0]));
-           
- 			// Set the directory and remove it from the segment array
-            $this->set_directory($dir);
-            // @edit: END
-
-            // @edit: If no controller found, use 'default_controller' as defined in 'config/routes.php'
-            if (count($segments) > 0 && ! file_exists(APPPATH.'controllers/'.$this->fetch_directory().$segments[0].'.php')){
-                array_unshift($segments, $this->default_controller);
-            }
-            // @edit: END
-
-            if (count($segments) > 0){
-                // Does the requested controller exist in the sub-folder?
-                if (!file_exists(APPPATH.'controllers/'.$this->fetch_directory().$segments[0].'.php')){
-                    // show_404($this->fetch_directory().$segments[0]);
-                    // @edit: Fix a "bug" where show_404 is called before all the core classes are loaded
-                    $this->directory = '';
-                    // @edit: END
-                }
-            }else{
-                // Is the method being specified in the route?
-                if (strpos($this->default_controller, '/') !== FALSE){
-                    $x = explode('/', $this->default_controller);
-                    $this->set_class($x[0]);
-                    $this->set_method($x[1]);
-                }else{
-                    $this->set_class($this->default_controller);
-                    $this->set_method($this->Method);
-                }
-                // Does the default controller exist in the sub-folder?
-                if (!file_exists(APPPATH.'controllers/'.$this->fetch_directory().$this->default_controller.'.php')){
-                    $this->directory = '';
-                    return array();
-                }
-            }
-            return $segments;
-        }
-        // If we've gotten this far it means that the URI does not correlate to a valid
-        // controller class.  We will now see if there is an override
-        if (!empty($this->routes['404_override'])){
-            $x = explode('/', $this->routes['404_override']);
-            $this->set_class($x[0]);
-            $this->set_method(isset($x[1]) ? $x[1] : $this->Method);
-            return $x;
-        }
-        // Nothing else to do at this point but show a 404
-        show_404($segments[0]);
-    }
-
-    /**
-     * OVERRIDE
-     *
-     * Set the directory name
-     *
-     * @access    public
-     * @param    string
-     * @return    void
-     */
-	
-	public function set_directory($dir, $append = FALSE){
-		// @edit: Preserve '/'
-		if ($append !== TRUE OR empty($this->directory)){
-			$this->directory = str_replace(array('.'), '', trim($dir, '/')).'/';
+	protected function CatchFirstNumKey(){
+		$Reg_Key = [];
+		foreach($this->uri->segment_array() AS $Seg_Key=>$Seg_Val){
+			//Check to see if any value in url is numeric
+			if(is_numeric($Seg_Val)){
+				//Register numeric key
+				$Reg_Key[] = $Seg_Key;
+			}
+		}
+		if(!empty($Reg_Key)){
+			return reset($Reg_Key);
 		}else{
-			$this->directory .= str_replace(array('.'), '', trim($dir, '/')).'/';
+			return FALSE;
 		}
 	}
+	
+	protected function CatchControllerMethod(){
+		$this->HeaderDirectToBaseController();
+		$FirstNumKey = $this->CatchFirstNumKey();
+		$route = [];
+		if($FirstNumKey==TRUE){
+			foreach($this->uri->segment_array() AS $Seg_Key=>$Seg_Val){
+				if($Seg_Key<$FirstNumKey){
+					$route[$Seg_Key] = $Seg_Val;
+				}
+			}
+		}else{
+			$route = $this->uri->segment_array();
+		}
+		return $route;
+	}
+	
+	protected function _set_default_controller(){
+		$route_current = implode('/',$this->CatchControllerMethod());
+		$method = basename($route_current);
+		$class = basename(str_replace($method,'',$route_current));
+		$route_path = str_replace($class.'/'.$method,'',$route_current);
+		$CF = APPPATH . 'controllers/' . $route_path . $class;
+		if(file_exists($CF.'.php')){
+			$this->set_directory($route_path);
+			$this->set_class($class);
+			$this->set_method($method);
+		}else{
+			show_404();
+		}
+	}
+	
+	// --------------------------------------------------------------------
+
+	/**
+	 * Set class name
+	 *
+	 * @param	string	$class	Class name
+	 * @return	void
+	 */
+	public function set_class($class)
+	{
+		$this->class = str_replace(array('/', '.'), '', $class);
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Fetch the current class
+	 *
+	 * @deprecated	3.0.0	Read the 'class' property instead
+	 * @return	string
+	 */
+	public function fetch_class()
+	{
+		return $this->class;
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Set method name
+	 *
+	 * @param	string	$method	Method name
+	 * @return	void
+	 */
+	public function set_method($method)
+	{
+		$this->method = $method;
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Fetch the current method
+	 *
+	 * @deprecated	3.0.0	Read the 'method' property instead
+	 * @return	string
+	 */
+	public function fetch_method()
+	{
+		return $this->method;
+	}
+	// --------------------------------------------------------------------
+
+	/**
+	 * Set directory name
+	 *
+	 * @param	string	$dir	Directory name
+	 * @param	bool	$append	Whether we're appending rather than setting the full value
+	 * @return	void
+	 */
+	public function set_directory($dir, $append = FALSE)
+	{
+		if ($append !== TRUE OR empty($this->directory))
+		{
+			$this->directory = str_replace('.', '', trim($dir, '/')).'/';
+		}
+		else
+		{
+			$this->directory .= str_replace('.', '', trim($dir, '/')).'/';
+		}
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Fetch directory
+	 *
+	 * Feches the sub-directory (if any) that contains the requested
+	 * controller class.
+	 *
+	 * @deprecated	3.0.0	Read the 'directory' property instead
+	 * @return	string
+	 */
+	public function fetch_directory()
+	{
+		return $this->directory;
+	}
+
 }
 ?>
