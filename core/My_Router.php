@@ -39,7 +39,14 @@ which makes troubles to codeginiter that is not designed for this purpose.
 							http://your-cool-server.com/BackEnd/User/ShowProfile/UserName
 							http://your-cool-server.com/BackEnd/User/ShowProfile/MichaelJakson
 					this is not working because it is based on ID
-							
+					but i have Enabled alphanumeric url like this ; 
+							http://your-cool-server.com/BackEnd/User/ShowProfile/500UserName
+							http://your-cool-server.com/BackEnd/User/ShowProfile/500-UserName
+							http://your-cool-server.com/BackEnd/User/ShowProfile/500_UserName
+							http://your-cool-server.com/BackEnd/User/ShowProfile/MichaelJakson1
+							http://your-cool-server.com/BackEnd/User/ShowProfile/MichaelJakson-1
+							http://your-cool-server.com/BackEnd/User/ShowProfile/MichaelJakson_1
+							since 9.11.2017
 */
 class My_Router extends CI_Router {
 
@@ -55,7 +62,7 @@ class My_Router extends CI_Router {
 	 *
 	 * @var	string
 	 */
-	public $method =	'Index';
+	public $method =	'index';
 
 	/**
 	 * Sub-directory that contains the requested controller class
@@ -91,6 +98,10 @@ class My_Router extends CI_Router {
 		$Reg_Key = [];
 		foreach($this->uri->segment_array() AS $Seg_Key=>$Seg_Val){
 			//Check to see if any value in url is numeric
+			if(preg_match ( '/([0-9]+)/', $Seg_Val, $matches )){
+				//Register numeric key
+				$Reg_Key[] = $Seg_Key;
+			}
 			if(is_numeric($Seg_Val)){
 				//Register numeric key
 				$Reg_Key[] = $Seg_Key;
