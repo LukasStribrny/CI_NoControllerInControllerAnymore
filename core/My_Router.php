@@ -102,10 +102,6 @@ class My_Router extends CI_Router {
 				//Register numeric key
 				$Reg_Key[] = $Seg_Key;
 			}
-			if(is_numeric($Seg_Val)){
-				//Register numeric key
-				$Reg_Key[] = $Seg_Key;
-			}
 		}
 		if(!empty($Reg_Key)){
 			return reset($Reg_Key);
